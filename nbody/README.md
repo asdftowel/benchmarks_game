@@ -1,7 +1,7 @@
 # N-body problem
 Mostly single-threaded (There are some papers showing possible parallel solutions using GPUs).
 See the [description](https://benchmarksgame-team.pages.debian.net/benchmarksgame/description/nbody.html "n-body description")
-and the Wikipedia [article](https://en.wikipedia.org/wiki/N-body "N-body simulation")
+and the Wikipedia [article](https://en.wikipedia.org/wiki/N-body "N-body simulation").
 
 ## C implemenations
 All of these are in standard C99 and don't use compiler directives.
