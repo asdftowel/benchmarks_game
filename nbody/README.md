@@ -19,7 +19,7 @@ Some things that didn't work:
  
 GCC command used:
 ```sh
-gcc -O3 -g -Wall -Wextra -Wconversion -Wshadow -Wpointer-arith -Wvla -Werror -pedantic-errors -pipe -march=native -ffast-math -flto=auto -std=c99 -ffp-contract=fast -fmerge-all-constants -fgcse-sm -fgcse-las -fext-dce -fira-hoist-pressure -fselective-scheduling -fsel-sched-pipelining -fsel-sched-pipelining-outer-loops -fipa-reorder-for-locality -fipa-pta -ffinite-loops -fgraphite-identity -floop-nest-optimize -ftree-loop-im -ftree-loop-ivcanon -fvariable-expansion-in-unroller -fallow-store-data-races -fstdarg-opt -fopt-info-all -o nbody nbodyX.c -lm
+gcc -O3 -Wall -Wextra -Wconversion -Wshadow -Wpointer-arith -Wvla -Werror -pedantic-errors -pipe -march=native -ffast-math -flto=auto -std=c99 -ffp-contract=fast -fmerge-all-constants -fgcse-sm -fgcse-las -fext-dce -fira-hoist-pressure -fselective-scheduling -fsel-sched-pipelining -fsel-sched-pipelining-outer-loops -fipa-reorder-for-locality -fipa-pta -ffinite-loops -fgraphite-identity -floop-nest-optimize -ftree-loop-im -ftree-loop-ivcanon -fvariable-expansion-in-unroller -fallow-store-data-races -fstdarg-opt -o nbody nbodyX.c -lm
 ```
 
 MSVC (cl.exe) command used:
