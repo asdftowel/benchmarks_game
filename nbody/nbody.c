@@ -1,4 +1,5 @@
-/* nbody.c - N-body simulation
+/*
+ * nbody.c - N-body simulation
  * Copyright (C) 2026 asdftowel
  *
  * This program is free software: you can redistribute it and/or modify
