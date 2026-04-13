@@ -5,10 +5,10 @@ and the Wikipedia [article](https://en.wikipedia.org/wiki/N-body "N-body simulat
 
 ## C implemenations
 All of these are in standard C99 and don't use compiler directives.
-Versions 1-3 and 4.5.1 don't use array parameter declarations, so
+Versions 1-3 and 6 don't use array parameter declarations, so
 MSVC can compile them.
 
-Version 4.5 seems to be the fastest right now.
+Version 5 seems to be the fastest right now.
 
 Some things that didn't work:
  - Manually flattening loops by precalculating planet pairs as pairs
@@ -29,7 +29,7 @@ cl /O2 /options:strict /W4 /utf-8 /validate-charset /MP /arch:AVX2 /fp:fast /jum
 
 ### Run results
 Description:
- - nbody 4.5.1
+ - nbody 6
  - AMD Ryzen 5 3500U
  - gcc.exe (Rev13, Built by MSYS2 project) 15.2.0
  - MSVC 19.44.35225 (x64)
