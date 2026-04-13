@@ -22,14 +22,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if __STDC_VERSION__ <= 201112L
+#error "This program requires at least C11."
+#elif __STDC_VERSION__ <= 202311L
+#include <stdalign.h>
+#endif
+
 enum body_consts {
   N_BODIES = 5,
   N_PARAMS = 7,
   N_COMBS = (N_BODIES - 1) * N_BODIES / 2
 };
 
+enum cpu_consts {
+  /* Closest power of two of 5 * 7 * sizeof(double) (280) */
+  BS_ALIGNED = 512,
+  /* Closest power of two of 10 * 3 * sizeof(double) (240) */
+  DS_ALIGNED = 256,
+  /* Closest power of two of 10 * sizeof(double) (80) */
+  MS_ALIGNED = 128
+};
+
 static inline void offset_momentum(
-  double bodies[static restrict const N_BODIES][N_PARAMS]
+  double (* restrict const bodies)[N_PARAMS]
 ) {
   int const sun_idx = N_BODIES - 1;
   int i;
@@ -61,8 +76,8 @@ static inline double pure_rsqrt(double x) {
 }
 
 static inline double energy(
-  double bodies[static restrict const N_BODIES][N_PARAMS],
-  double mags[static restrict const N_COMBS]
+  double (* restrict const bodies)[N_PARAMS],
+  double * restrict const mags
 ) {
   int i, j, k;
   double e = 0., dx, dy, dz, d2, dist, vx, vy, vz;
@@ -92,9 +107,9 @@ static inline double energy(
 }
 
 static inline void advance(
-  double bodies[static restrict const N_BODIES][N_PARAMS],
-  double dists[static restrict const N_COMBS][3],
-  double mags[static restrict const N_COMBS],
+  double (* restrict const bodies)[N_PARAMS],
+  double (* restrict const dists)[3],
+  double * restrict const mags,
   double const dt
 ) {
   int i, j, k;
@@ -141,77 +156,74 @@ int main(int argc, char *argv[]) {
   double const solar_mass = 4. * pi * pi;
   double const days_per_year = 365.24;
   char *end = NULL;
-  double
-    (* const bodies)[N_PARAMS] = malloc((size_t)N_BODIES * sizeof *bodies),
-    (* const dists)[3] = malloc((size_t)N_COMBS * sizeof *dists),
-    * const mags = malloc((size_t)N_COMBS * sizeof *mags),
-    e1 = 0.;
-  unsigned long iterations, step;
-  double e2;
-  if (!bodies | !dists | !mags) {
-    puts("FAIL: could not allocate matrices, not enough memory.");
-    goto fail;
-  }
-  if (argc < 2) {
-    puts("FAIL: Please provide the amount of iterations.");
-    goto fail;
-  }
-  errno = 0;
-  iterations = strtoul(argv[1], &end, 10);
-  if (errno == ERANGE) {
-    perror("FAIL");
-    goto fail;
-  }
-  if (!iterations) {
-    puts("FAIL: Zero iterations (is the argument malformed?)");
-    goto fail;
-  }
   /*
    * Astronomical bodies:
    *  - doubles 0, 1 and 2 form the position
    *  - doubles 3, 4 and 5 form the velocity
    *  - double 6 represents the mass
    */
-  /* Jupiter */
-  bodies[0][0] = 4.8414314424647209;
-  bodies[0][1] = -1.16032004402742839;
-  bodies[0][2] = -0.103622044471123109;
-  bodies[0][3] = 0.00166007664274403694 * days_per_year;
-  bodies[0][4] = 0.00769901118419740425 * days_per_year;
-  bodies[0][5] = -0.0000690460016972063023 * days_per_year;
-  bodies[0][6] = 0.000954791938424326609 * solar_mass;
-  /* Saturn */
-  bodies[1][0] = 8.34336671824457987;
-  bodies[1][1] = 4.12479856412430479;
-  bodies[1][2] = -0.403523417114321381;
-  bodies[1][3] = -0.00276742510726862411 * days_per_year;
-  bodies[1][4] = 0.00499852801234917238 * days_per_year;
-  bodies[1][5] = 0.0000230417297573763929 * days_per_year;
-  bodies[1][6] = 0.000285885980666130812 * solar_mass;
-  /* Uranus */
-  bodies[2][0] = 12.894369562139131;
-  bodies[2][1] = -15.1111514016986312;
-  bodies[2][2] = -0.223307578892655734;
-  bodies[2][3] = 0.00296460137564761618 * days_per_year;
-  bodies[2][4] = 0.0023784717395948095 * days_per_year;
-  bodies[2][5] = -0.0000296589568540237556 * days_per_year;
-  bodies[2][6] = 0.0000436624404335156298 * solar_mass;
-  /* Neptune */
-  bodies[3][0] = 15.3796971148509165;
-  bodies[3][1] = -25.9193146099879641;
-  bodies[3][2] = 0.179258772950371181;
-  bodies[3][3] = 0.00268067772490389322 * days_per_year;
-  bodies[3][4] = 0.00162824170038242295 * days_per_year;
-  bodies[3][5] = -0.000095159225451971587 * days_per_year;
-  bodies[3][6] = 0.0000515138902046611451 * solar_mass;
-  /* Sun */
-  bodies[4][0] = 0.;
-  bodies[4][1] = 0.;
-  bodies[4][2] = 0.;
-  bodies[4][3] = 0.;
-  bodies[4][4] = 0.;
-  bodies[4][5] = 0.;
-  bodies[4][6] = solar_mass;
+  double alignas(BS_ALIGNED) bodies[N_BODIES][N_PARAMS] = {
+    /* Jupiter */
+    {
+      4.8414314424647209,
+      -1.16032004402742839,
+      -0.103622044471123109,
+      0.00166007664274403694 * days_per_year,
+      0.00769901118419740425 * days_per_year,
+      -0.0000690460016972063023 * days_per_year,
+      0.000954791938424326609 * solar_mass
+    },
+    /* Saturn */
+    {
+      8.34336671824457987,
+      4.12479856412430479,
+      -0.403523417114321381,
+      -0.00276742510726862411 * days_per_year,
+      0.00499852801234917238 * days_per_year,
+      0.0000230417297573763929 * days_per_year,
+      0.000285885980666130812 * solar_mass
+    },
+    /* Uranus */
+    {
+      12.894369562139131,
+      -15.1111514016986312,
+      -0.223307578892655734,
+      0.00296460137564761618 * days_per_year,
+      0.0023784717395948095 * days_per_year,
+      -0.0000296589568540237556 * days_per_year,
+      0.0000436624404335156298 * solar_mass
+    },
+    /* Neptune */
+    {
+      15.3796971148509165,
+      -25.9193146099879641,
+      0.179258772950371181,
+      0.00268067772490389322 * days_per_year,
+      0.00162824170038242295 * days_per_year,
+      -0.000095159225451971587 * days_per_year,
+      0.0000515138902046611451 * solar_mass
+    },
+    /* Sun */
+    {0., 0., 0., 0., 0., 0., solar_mass}
+  };
+  double e1 = 0., e2;
+  double alignas(DS_ALIGNED) dists[N_COMBS][3];
+  double alignas(MS_ALIGNED) mags[N_COMBS];
+  unsigned long iterations, step;
+  if (argc < 2) {
+    puts("FAIL: Please provide the amount of iterations.");
+    return EXIT_FAILURE;
+  }
+  errno = 0;
+  iterations = strtoul(argv[1], &end, 10);
+  if (errno == ERANGE) {
+    perror("FAIL");
+    return EXIT_FAILURE;
+  }
+  if (!iterations) {
+    puts("FAIL: Zero iterations (is the argument malformed?)");
+    return EXIT_FAILURE;
+  }
   offset_momentum(bodies);
   /*
    * Manually inline first call to energy and replace sqrt()
@@ -247,13 +259,5 @@ int main(int argc, char *argv[]) {
   }
   e2 = energy(bodies, mags);
   printf("%.9f\n%.9f\n", e1, e2);
-  free(bodies);
-  free(dists);
-  free(mags);
   return EXIT_SUCCESS;
- fail:
-  free(bodies);
-  free(dists);
-  free(mags);
-  return EXIT_FAILURE;
 }
