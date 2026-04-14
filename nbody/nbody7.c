@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
    *  - doubles 3, 4 and 5 form the velocity
    *  - double 6 represents the mass
    */
-  double alignas(BS_ALIGNED) bodies[N_BODIES][N_PARAMS] = {
+  alignas(BS_ALIGNED) double bodies[N_BODIES][N_PARAMS] = {
     /* Jupiter */
     {
       4.8414314424647209,
@@ -206,8 +206,8 @@ int main(int argc, char *argv[]) {
     {0., 0., 0., 0., 0., 0., solar_mass}
   };
   double e1 = 0., e2;
-  double alignas(DS_ALIGNED) dists[N_COMBS][3];
-  double alignas(MS_ALIGNED) mags[N_COMBS];
+  alignas(DS_ALIGNED) double dists[N_COMBS][3];
+  alignas(MS_ALIGNED) double mags[N_COMBS];
   unsigned long iterations, step;
   if (argc < 2) {
     puts("FAIL: Please provide the amount of iterations.");
