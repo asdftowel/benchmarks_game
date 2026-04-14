@@ -11,11 +11,13 @@ MSVC can compile them.
 Version 5 seems to be the fastest right now.
 
 Some things that didn't work:
- - Manually flattening loops by precalculating planet pairs as pairs
+ - Manually flattening loops by precalculating body pairs as pairs
  of indices. This confused GCC's optimizer.
  - Adding OpenMP directives. Even though some of the loops are completely
  parallel, the program took 10x longer to finish. I only tested CPU
  multithreading, so offloading may help.
+ - Replacing some branches with branchless code. While GCC was able
+ to perform some new optimizations, the program became about 10% slower.
  
 GCC command used:
 ```sh
