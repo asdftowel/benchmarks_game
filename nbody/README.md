@@ -4,9 +4,9 @@ See the [description](https://benchmarksgame-team.pages.debian.net/benchmarksgam
 and the Wikipedia [article](https://en.wikipedia.org/wiki/N-body "N-body simulation").
 
 ## C implemenations
-All of these are in standard C99 and don't use compiler directives.
-Versions 1-3 and 6 don't use array parameter declarations, so
-MSVC can compile them.
+All of these are in standard C99 (except #9, it uses C23 features)
+and don't use compiler directives. Versions 1-3 and 6 don't use
+array parameter declarations, so MSVC can compile them.
 
 Version 5 seems to be the fastest right now.
 
