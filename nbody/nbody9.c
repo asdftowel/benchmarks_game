@@ -22,6 +22,34 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L
+#error "This program requires C23 support."
+#endif
+#define OP_4X4(dest, src1, src2, eq, op)	\
+  dest 0] eq src1 0] op src2 0];		\
+  dest 1] eq src1 1] op src2 1];		\
+  dest 2] eq src1 2] op src2 2];		\
+  dest 3] eq src1 3] op src2 3]
+#define OP_4X1(dest, src1, src2, eq, op)	\
+  dest 0] eq src1 0] op src2;		\
+  dest 1] eq src1 1] op src2;		\
+  dest 2] eq src1 2] op src2;		\
+  dest 3] eq src1 3] op src2
+#define HADD_4X4(dest, src1, src2)	  \
+  dest[0] = src1[0] + src1[1];		  \
+  dest[1] = src2[0] + src2[1];		  \
+  dest[2] = src1[2] + src1[3];		  \
+  dest[3] = src2[2] + src2[3]
+#define BLEND_SUM_4X4(dest, src1, src2)	\
+  dest 0] = src1[0] + src1[2];		\
+  dest 1] = src1[1] + src1[3];		\
+  dest 2] = src2[0] + src2[2];		\
+  dest 3] = src2[1] + src2[3]
+#define COPY_4(dest, src) \
+  dest 0] = src 0];	  \
+  dest 1] = src 1];	  \
+  dest 2] = src 2];	  \
+  dest 3] = src 3]
 
 enum body_consts {
   N_BODIES = 5,
@@ -50,56 +78,22 @@ static inline void rsqrt_dist(
   double pos[static restrict const N_BODIES][VEC_SIZE]
 ) {
   int i, j, k;
-  double tmp[4][VEC_SIZE];
+  double tmp1[4][VEC_SIZE], tmp2[VEC_SIZE], tmp3[VEC_SIZE];
   for (i = 0, k = 0; i < N_BODIES; ++i) {
     for (j = i + 1; j < N_BODIES; ++j, ++k) {
-      dst[k][0] = pos[i][0] - pos[j][0];
-      dst[k][1] = pos[i][1] - pos[j][1];
-      dst[k][2] = pos[i][2] - pos[j][2];
-      dst[k][3] = pos[i][3] - pos[j][3];
+      OP_4X4(dst[k][, pos[i][, pos[j][, =, -);
     }
   }
   for (k = 0; k < N_COMBNS; k += 4) {
-    tmp[0][0] = dst[k][0] * dst[k][0];
-    tmp[0][1] = dst[k][1] * dst[k][1];
-    tmp[0][2] = dst[k][2] * dst[k][2];
-    tmp[0][3] = dst[k][3] * dst[k][3];
-
-    tmp[1][0] = dst[k + 1][0] * dst[k + 1][0];
-    tmp[1][1] = dst[k + 1][1] * dst[k + 1][1];
-    tmp[1][2] = dst[k + 1][2] * dst[k + 1][2];
-    tmp[1][3] = dst[k + 1][3] * dst[k + 1][3];
-
-    tmp[2][0] = dst[k + 2][0] * dst[k + 2][0];
-    tmp[2][1] = dst[k + 2][1] * dst[k + 2][1];
-    tmp[2][2] = dst[k + 2][2] * dst[k + 2][2];
-    tmp[2][3] = dst[k + 2][3] * dst[k + 2][3];
-
-    tmp[3][0] = dst[k + 3][0] * dst[k + 3][0];
-    tmp[3][1] = dst[k + 3][1] * dst[k + 3][1];
-    tmp[3][2] = dst[k + 3][2] * dst[k + 3][2];
-    tmp[3][3] = dst[k + 3][3] * dst[k + 3][3];
-    
-    tmp[0][0] = tmp[0][0] + tmp[0][1];
-    tmp[0][1] = tmp[1][0] + tmp[1][1];
-    tmp[0][2] = tmp[0][2] + tmp[0][3];
-    tmp[0][3] = tmp[1][2] + tmp[1][3];
-
-    tmp[2][0] = tmp[2][0] + tmp[2][1];
-    tmp[2][1] = tmp[3][0] + tmp[3][1];
-    tmp[2][2] = tmp[2][2] + tmp[2][3];
-    tmp[2][3] = tmp[3][2] + tmp[3][3];
-
-    tmp[0][0] = tmp[0][0] + tmp[0][2];
-    tmp[0][1] = tmp[0][1] + tmp[0][3];
-    tmp[0][2] = tmp[2][0] + tmp[2][2];
-    tmp[0][3] = tmp[2][1] + tmp[2][3];
-
-    rsqrt_vec(tmp[0]);
-    res[k] = tmp[0][0];
-    res[k + 1] = tmp[0][1];
-    res[k + 2] = tmp[0][2];
-    res[k + 3] = tmp[0][3];
+    OP_4X4(tmp1[0][, dst[k][, dst[k][, =, *);
+    OP_4X4(tmp1[1][, dst[k + 1][, dst[k + 1][, =, *);
+    OP_4X4(tmp1[2][, dst[k + 2][, dst[k + 2][, =, *);
+    OP_4X4(tmp1[3][, dst[k + 3][, dst[k + 3][, =, *);
+    HADD_4X4(tmp2, tmp1[0], tmp1[1]);
+    HADD_4X4(tmp3, tmp1[2], tmp1[3]);
+    BLEND_SUM_4X4(tmp1[0][, tmp2, tmp3);
+    rsqrt_vec(tmp1[0]);
+    COPY_4(res[k + , tmp1[0][);
   }
 }
 
@@ -116,27 +110,15 @@ static double energy(
     [N_COMBNS] = {1., 1., 1., 1.},
     [N_COMBNS + 1] = {1., 1., 1., 1.}
   };
-  double mags[N_COMBNS + 2];
+  double mags[N_COMBNS + 2], tmp1[VEC_SIZE], tmp2[VEC_SIZE];
   int i, j, k;
   for (i = 0; i < N_BODIES; ++i) {
-    dists[i][0] = vel[i][0] * vel[i][0];
-    dists[i][1] = vel[i][1] * vel[i][1];
-    dists[i][2] = vel[i][2] * vel[i][2];
-    dists[i][3] = vel[i][3] * vel[i][3];
+    OP_4X4(dists[i][, vel[i][, vel[i][, =, *);
   }
   for (i = 0; i < N_BODIES; i += 4) {
-    dists[i][0] = dists[i][0] + dists[i][1];
-    dists[i][1] = dists[i + 1][0] + dists[i + 1][1];
-    dists[i][2] = dists[i][2] + dists[i][3];
-    dists[i][3] = dists[i + 1][2] + dists[i + 1][3];
-    dists[i + 2][0] = dists[i + 2][0] + dists[i + 2][1];
-    dists[i + 2][1] = dists[i + 3][0] + dists[i + 3][1];
-    dists[i + 2][2] = dists[i + 2][2] + dists[i + 2][3];
-    dists[i + 2][3] = dists[i + 3][2] + dists[i + 3][3];
-    mags[i] = dists[i][0] + dists[i][2];
-    mags[i + 1] = dists[i][1] + dists[i][3];
-    mags[i + 2] = dists[i + 2][0] + dists[i + 2][2];
-    mags[i + 3] = dists[i + 2][1] + dists[i + 2][3];
+    HADD_4X4(tmp1, dists[i], dists[i + 1]);
+    HADD_4X4(tmp2, dists[i + 2], dists[i + 3]);
+    BLEND_SUM_4X4(mags[i +, tmp1, tmp2);
   }
   for (i = 0; i < N_BODIES; ++i) {
     e += 0.5 * mass[i] * mags[i];
@@ -168,71 +150,67 @@ static inline void advance(
   for (steps = 0; steps < n; ++steps) {
     rsqrt_dist(mags, dists, pos);
     for (i = 0; i < N_COMBNS; i += 4) {
-      tmp1[0] = mags[i] * mags[i];
-      tmp1[1] = mags[i + 1] * mags[i + 1];
-      tmp1[2] = mags[i + 2] * mags[i + 2];
-      tmp1[3] = mags[i + 3] * mags[i + 3];
-      tmp2[0] = mags[i] * ticks[0];
-      tmp2[1] = mags[i + 1] * ticks[1];
-      tmp2[2] = mags[i + 2] * ticks[2];
-      tmp2[3] = mags[i + 3] * ticks[3];
-      mags[i] = tmp1[0] * tmp2[0];
-      mags[i + 1] = tmp1[1] * tmp2[1];
-      mags[i + 2] = tmp1[2] * tmp2[2];
-      mags[i + 3] = tmp1[3] * tmp2[3];
+      OP_4X4(tmp1[, mags[i +, mags[i +, =, *);
+      OP_4X4(tmp2[, mags[i +, ticks[, =, *);
+      OP_4X4(mags[i +, tmp1[, tmp2[, =, *);
     }
     for (i = 0, k = 0; i < N_BODIES; ++i) {
       for (j = i + 1; j < N_BODIES; ++j, ++k) {
-	tmp1[0] = dists[k][0] * mags[k];
-	tmp1[1] = dists[k][1] * mags[k];
-	tmp1[2] = dists[k][2] * mags[k];
-	tmp1[3] = dists[k][3] * mags[k];
-	tmp2[0] = tmp1[0];
-	tmp2[1] = tmp1[1];
-	tmp2[2] = tmp1[2];
-	tmp2[3] = tmp1[3];
-	vel[i][0] -= tmp1[0] * mass[j];
-	vel[i][1] -= tmp1[1] * mass[j];
-	vel[i][2] -= tmp1[2] * mass[j];
-	vel[i][3] -= tmp1[3] * mass[j];
-	vel[j][0] += tmp2[0] * mass[i];
-	vel[j][1] += tmp2[1] * mass[i];
-	vel[j][2] += tmp2[2] * mass[i];
-	vel[j][3] += tmp2[3] * mass[i];
+	OP_4X1(tmp1[, dists[k][, mags[k], =, *);
+        COPY_4(tmp2[, tmp1[);
+        OP_4X1(vel[i][, tmp1[, mass[j], -=, *);
+        OP_4X1(vel[j][, tmp2[, mass[i], +=, *);
       }
     }
     for (i = 0; i < N_BODIES; ++i) {
-      pos[i][0] += vel[i][0] * ticks[0];
-      pos[i][1] += vel[i][1] * ticks[1];
-      pos[i][2] += vel[i][2] * ticks[2];
-      pos[i][3] += vel[i][3] * ticks[3];
+      OP_4X4(pos[i][, vel[i][, ticks[, +=, *);
     }
   }
 }
 
 int main(int argc, char *argv[]) {
-  constexpr auto pi = 3.141592653589793;
+  constexpr auto pi = 3.141'592'653'589'793;
   constexpr auto solar_mass = 4. * pi * pi;
   constexpr auto days_per_year = 365.24;
   constexpr double mass[N_BODIES] = {
-    solar_mass,                            /*     Sun */
-    0.000954791938424326609 * solar_mass,  /* Jupiter */
-    0.000285885980666130812 * solar_mass,  /*  Saturn */
-    0.0000436624404335156298 * solar_mass, /*  Uranus */
-    0.0000515138902046611451 * solar_mass  /* Neptune */
+    solar_mass,                                   /*     Sun */
+    0.000'954'791'938'424'326'609 * solar_mass,   /* Jupiter */
+    0.000'285'885'980'666'130'812 * solar_mass,   /*  Saturn */
+    0.000'043'662'440'433'515'629'8 * solar_mass, /*  Uranus */
+    0.000'051'513'890'204'661'145'1 * solar_mass  /* Neptune */
   };
   char *end = nullptr;
   double pos[N_BODIES][VEC_SIZE] = {
     /* Sun */
     {},
     /* Jupiter */
-    { .0, 4.8414314424647209, -1.16032004402742839, -0.103622044471123109 },
+    {
+      .0,
+      4.841'431'442'464'720'9,
+      -1.160'320'044'027'428'39,
+      -0.103'622'044'471'123'109
+    },
     /* Saturn */
-    { .0, 8.34336671824457987, 4.12479856412430479, -0.403523417114321381 },
+    {
+      .0,
+      8.343'366'718'244'579'87,
+      4.124'798'564'124'304'79,
+      -0.403'523'417'114'321'381
+    },
     /* Uranus */
-    { .0, 12.894369562139131, -15.1111514016986312, -0.223307578892655734 },
+    {
+      .0,
+      12.894'369'562'139'131,
+      -15.111'151'401'698'631'2,
+      -0.223'307'578'892'655'734
+    },
     /* Neptune */
-    { .0, 15.3796971148509165, -25.9193146099879641, 0.179258772950371181 }
+    {
+      .0,
+      15.379'697'114'850'916'5,
+      -25.919'314'609'987'964'1,
+      0.179'258'772'950'371'181
+    }
   };
   double vel[N_BODIES][VEC_SIZE] = {
     /* Sun */
@@ -240,30 +218,30 @@ int main(int argc, char *argv[]) {
     /* Jupiter */
     {
       .0,
-      0.00166007664274403694 * days_per_year,
-      0.00769901118419740425 * days_per_year,
-      -0.0000690460016972063023 * days_per_year
+      0.001'660'076'642'744'036'94 * days_per_year,
+      0.007'699'011'184'197'404'25 * days_per_year,
+      -0.000'069'046'001'697'206'302'3 * days_per_year
     },
     /* Saturn */
     {
       .0,
-      -0.00276742510726862411 * days_per_year,
-      0.00499852801234917238 * days_per_year,
-      0.0000230417297573763929 * days_per_year
+      -0.002'767'425'107'268'624'11 * days_per_year,
+      0.004'998'528'012'349'172'38 * days_per_year,
+      0.000'023'041'729'757'376'392'9 * days_per_year
     },
     /* Uranus */
     {
       .0,
-      0.00296460137564761618 * days_per_year,
-      0.0023784717395948095 * days_per_year,
-      -0.0000296589568540237556 * days_per_year
+      0.002'964'601'375'647'616'18 * days_per_year,
+      0.002'378'471'739'594'809'5 * days_per_year,
+      -0.000'029'658'956'854'023'755'6 * days_per_year
     },
     /* Neptune */
     {
       .0,
-      0.00268067772490389322 * days_per_year,
-      0.00162824170038242295 * days_per_year,
-      -0.000095159225451971587 * days_per_year
+      0.002'680'677'724'903'893'22 * days_per_year,
+      0.001'628'241'700'382'422'95 * days_per_year,
+      -0.000'095'159'225'451'971'587 * days_per_year
     }
   };
   double e;
@@ -271,15 +249,9 @@ int main(int argc, char *argv[]) {
   {
     double tmp[4] = {};
     for (int i = 1; i < N_BODIES; ++i) {
-      tmp[0] += vel[i][0] * mass[i];
-      tmp[1] += vel[i][1] * mass[i];
-      tmp[2] += vel[i][2] * mass[i];
-      tmp[3] += vel[i][3] * mass[i];
+      OP_4X1(tmp[, vel[i][, mass[i], +=, *);
     }
-    vel[0][0] = -tmp[0] / mass[0];
-    vel[0][1] = -tmp[1] / mass[0];
-    vel[0][2] = -tmp[2] / mass[0];
-    vel[0][3] = -tmp[3] / mass[0];
+    OP_4X1(vel[0][, -tmp[, mass[0], =, /);
   }
   e = energy(pos, vel, mass);
   if (argc != 2) {
