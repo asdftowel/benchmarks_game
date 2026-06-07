@@ -8,14 +8,9 @@ All of these are in standard C99 (except #9, it uses C23 features)
 and don't use compiler directives. Versions 1-3 and 6 don't use
 array parameter declarations, so MSVC can compile them.
 
-Version 5 seems to be the fastest right now.
-
 Some things that didn't work:
  - Manually flattening loops by precalculating body pairs as pairs
  of indices. This confused GCC's optimizer.
- - Adding OpenMP directives. Even though some of the loops are completely
- parallel, the program took 10x longer to finish. I only tested CPU
- multithreading, so offloading may help.
  - Replacing some branches with branchless code. While GCC was able
  to perform some new optimizations, the program became about 10% slower.
  
@@ -28,13 +23,3 @@ MSVC (cl.exe) command used:
 ```cmd
 cl /O2 /options:strict /W4 /utf-8 /validate-charset /MP /arch:AVX2 /fp:fast /jumptablerdata /GL /Gw /Fe:nbody /std:c17 nbodyX.c
 ```
-
-### Run results
-Description:
- - nbody 6
- - AMD Ryzen 5 3500U
- - gcc.exe (Rev13, Built by MSYS2 project) 15.2.0
- - MSVC 19.44.35225 (x64)
- 
-![Time taken in seconds (cold start). GCC: 3.778, MSVC: 5.88](../assets/cold.svg)
-![Time taken in seconds (cached). GCC: 3.135 - 3.162, MSVC: 4.82 - 4.839](../assets/full_speed.svg)
