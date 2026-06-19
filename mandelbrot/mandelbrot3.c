@@ -42,7 +42,7 @@ static inline void calc_sum(
 ) {
   int i;
   double re, im, r2, i2;
-  for (i = 0; i < 8; ++i) {
+  for (i = 0; i < CHAR_BIT; ++i) {
     re = reals[i];
     im = imags[i];
     r2 = re * re;
@@ -53,42 +53,34 @@ static inline void calc_sum(
   }
 }
 
-#define VEC_ALL_GT(vec, cmp) \
-  (vec[0] > cmp &&	     \
-   vec[1] > cmp &&	     \
-   vec[2] > cmp &&	     \
-   vec[3] > cmp &&	     \
-   vec[4] > cmp &&	     \
-   vec[5] > cmp &&	     \
-   vec[6] > cmp &&	     \
-   vec[7] > cmp)
+static inline bool all_gt(double const * restrict const vec) {
+  int i;
+  for (i = 0; i < CHAR_BIT; ++i) {
+    if (vec[i] <= 4.) {
+      return false;
+    }
+  }
+  return true;
+}
 
 static inline unsigned int mand_char(
     double const * restrict const init_r,
     double const init_i
 ) {
-  double
-    reals[8] = {
-    init_r[0],
-    init_r[1],
-    init_r[2],
-    init_r[3],
-    init_r[4],
-    init_r[5],
-    init_r[6],
-    init_r[7]
-  },
-    imags[8] = {
-      init_i, init_i, init_i, init_i, init_i, init_i, init_i, init_i
-    },
-    sums[8];
+  double reals[CHAR_BIT], imags[CHAR_BIT], sums[CHAR_BIT];
   unsigned int result = 0xff, checks[8];
   int i, j;
+
+  for (i = 0; i < CHAR_BIT; ++i) {
+    reals[i] = init_r[i];
+    imags[i] = init_i;
+  }
+  
   for (i = 0; i < 6; ++i) {
     for (j = 0; j < 8; ++j) {
       calc_sum(sums, reals, imags, init_r, init_i);
     }
-    if (VEC_ALL_GT(sums, 4.)) {
+    if (all_gt(sums)) {
       result = 0;
       goto quick_ret;
     }
