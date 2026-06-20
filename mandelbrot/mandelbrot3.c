@@ -65,15 +65,17 @@ static inline bool all_gt(double const * restrict const vec) {
 
 enum bit_consts {
   ULONG_BITS = CHAR_BIT * sizeof(unsigned long),
-  HIGH_SHIFT = ULONG_BITS - CHAR_BIT
+  HIGH_SHIFT = ULONG_BITS - CHAR_BIT,
+  TOP_BIT = CHAR_BIT - 1
 };
 
 static inline unsigned int mand_char(
     double const * restrict const init_r,
-    double const init_i
+    double const init_i,
+    unsigned int const * restrict const masks
 ) {
   double reals[CHAR_BIT], imags[CHAR_BIT], sums[CHAR_BIT];
-  unsigned int result = 0xff, checks[8];
+  unsigned int result = 0xff;
   int i, j;
 
   for (i = 0; i < CHAR_BIT; ++i) {
@@ -92,22 +94,9 @@ static inline unsigned int mand_char(
   }
   calc_sum(sums, reals, imags, init_r, init_i);
   calc_sum(sums, reals, imags, init_r, init_i);
-  checks[0] = sums[0] <= 4.;
-  checks[1] = sums[1] <= 4.;
-  checks[2] = sums[2] <= 4.;
-  checks[3] = sums[3] <= 4.;
-  checks[4] = sums[4] <= 4.;
-  checks[5] = sums[5] <= 4.;
-  checks[6] = sums[6] <= 4.;
-  checks[7] = sums[7] <= 4.;
-  result &= 0x7fu | (checks[0] << 7u);
-  result &= 0xbfu | (checks[1] << 6u);
-  result &= 0xdfu | (checks[2] << 5u);
-  result &= 0xefu | (checks[3] << 4u);
-  result &= 0xf7u | (checks[4] << 3u);
-  result &= 0xfbu | (checks[5] << 2u);
-  result &= 0xfdu | (checks[6] << 1u);
-  result &= 0xfeu | checks[7];
+  for (i = 0, j = TOP_BIT; i < CHAR_BIT; ++i, --j) {
+    result &= masks[i] | ((unsigned int)(sums[i] <= 4.) << j);
+  }
  done:
   return result;
 }
@@ -123,14 +112,16 @@ static inline unsigned int mand_char(
 
 static inline unsigned long mand_long(
     double const * restrict const init_r,
-    double const init_i
+    double const init_i,
+    unsigned int const * restrict const masks
 ) {
   unsigned long result = 0;
   int offset = 0;
   size_t i;
   for (i = 0; i < sizeof(unsigned long); ++i) {
     result =
-      (result >> CHAR_BIT) | (mand_char(init_r + offset, init_i) << HIGH_SHIFT);
+      (result >> CHAR_BIT) |
+      (mand_char(init_r + offset, init_i, masks) << HIGH_SHIFT);
     offset += CHAR_BIT;
   }
   return result;
@@ -147,15 +138,17 @@ struct thread_args {
   double const * init_i;
   unsigned long width;
   unsigned long nrows;
+  unsigned int const * masks;
 };
 
-static inline int compute(void *args) {
+static int compute(void *args) {
   struct thread_args const * const locals = args;
   union bitmap_t const bitmap = locals->bitmap;
   double const * const init_r = locals->init_r,
     * const init_i = locals->init_i;
   unsigned long const width = locals->width,
     nrows = locals->nrows;
+  unsigned int const * const masks = locals->masks;
   unsigned long row, col, ir_offset;
   size_t row_offset = 0;
   switch (locals->batch) {
@@ -163,7 +156,7 @@ static inline int compute(void *args) {
     for (row = 0; row < nrows; ++row) {
       for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += CHAR_BIT) {
 	bitmap.bytes[row_offset + col] =
-	  (unsigned char)mand_char(init_r + ir_offset, init_i[row]);
+	  (unsigned char)mand_char(init_r + ir_offset, init_i[row], masks);
       }
       row_offset += width;
     }
@@ -172,7 +165,7 @@ static inline int compute(void *args) {
     for (row = 0; row < nrows; ++row) {
       for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += ULONG_BITS) {
 	bitmap.words[row_offset + col] =
-	  mand_long(init_r + ir_offset, init_i[row]);
+	  mand_long(init_r + ir_offset, init_i[row], masks);
       }
       row_offset += width;
     }
@@ -189,7 +182,7 @@ static inline int compute(void *args) {
 #if N_THREADS < 1
 #error "N_THREADS must be at least 1"
 #endif
-#define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows)	\
+#define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows, m)	\
   switch (s) {							\
   case BYTE:							\
     name->bitmap.bytes = bm.bytes + off * w;			\
@@ -204,7 +197,8 @@ static inline int compute(void *args) {
   name->init_r = r;						\
   name->init_i = i + off;					\
   name->width = w;					       	\
-  name->nrows = rows
+  name->nrows = rows;						\
+  name->masks = m
 #define PUT_ERR(msg)						\
   fputs(__FILE__ ", line " EXPAND(__LINE__) ": Error: " msg "\n", stderr)
 #define PUT_WARN(msg)						\
@@ -219,6 +213,8 @@ static inline int compute(void *args) {
 
 int main(int argc, char *argv[]) {
   unsigned long img_size, img_rem, row_size, i, remaining, eq_parts;
+  unsigned int masks[CHAR_BIT];
+  int idx, shift;
   size_t bitmap_size, t, offset;
   union bitmap_t bitmap;
   char * end = NULL;
@@ -227,6 +223,10 @@ int main(int argc, char *argv[]) {
   struct thread_args * args;
   bool failed = false, batch_long;
   enum batch_size batch;
+
+  for (idx = 0, shift = TOP_BIT; idx < CHAR_BIT; ++idx, --shift) {
+    masks[idx] = ~(1u << shift);
+  }
 
 #ifdef _WIN32
   /* Windows silently converts \n into \r\n */
@@ -331,7 +331,8 @@ int main(int argc, char *argv[]) {
 	  reals,
 	  imags,
 	  row_size,
-	  eq_parts + 1
+	  eq_parts + 1,
+	  masks
       );
       offset += eq_parts + 1;
       if (thrd_create(threads + t, compute, args) != thrd_success) {
@@ -351,7 +352,8 @@ int main(int argc, char *argv[]) {
 	reals,
 	imags,
 	row_size,
-	eq_parts
+	eq_parts,
+	masks
     );
     offset += eq_parts;
     if (thrd_create(threads + t, compute, args) != thrd_success) {
