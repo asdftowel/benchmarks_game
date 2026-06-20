@@ -3,10 +3,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define N_THREADS 4 /* Adjust to number of hardware threads */
+#if N_THREADS < 1
+#error "N_THREADS must be at least 1"
+#endif
+
 #if !defined(__STDC_VERSION__) || \
   __STDC_VERSION__ < 201112L || \
-  defined(__STDC_NO_THREADS__)
-#error "This program requires support for C11 threads."
+  defined(__STDC_NO_THREADS__) || \
+  N_THREADS == 1
+#define NO_THREADS
 #else
 #include <threads.h>
 #endif
@@ -101,15 +107,6 @@ static inline unsigned int mand_char(
   return result;
 }
 
-/*
- * Does this actually improve performance?
- * It can theoretically reduce the amount
- * of writes, but adds extra instructions,
- * wasting any savings from batching IO.
- * It also significantly increases code
- * complexity.
- */
-
 static inline unsigned long mand_long(
     double const * restrict const init_r,
     double const init_i,
@@ -178,10 +175,6 @@ static int compute(void *args) {
 }
 
 #define MAX_IMG_SIZE 16000ul /* In pixels */
-#define N_THREADS 4 /* Adjust to number of hardware threads */
-#if N_THREADS < 1
-#error "N_THREADS must be at least 1"
-#endif
 #define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows, m)	\
   switch (s) {							\
   case BYTE:							\
@@ -211,17 +204,27 @@ static int compute(void *args) {
   )
 #define PUT_ERRNO perror(__FILE__ ", line " EXPAND(__LINE__) ": Error")
 
+/*
+ * In a real program the NO_THREADS ifdefs should instead be functions
+ * in separate files that get conditionally included based on the macro.
+ */
+
 int main(int argc, char *argv[]) {
-  unsigned long img_size, img_rem, row_size, i, remaining, eq_parts;
+  unsigned long img_size, img_rem, row_size, i;
   unsigned int masks[CHAR_BIT];
   int idx, shift;
-  size_t bitmap_size, t, offset;
+  size_t bitmap_size;
   union bitmap_t bitmap;
   char * end = NULL;
   double inv, * reals, * imags;
+#ifndef NO_THREADS
+  unsigned long eq_parts, remaining;
+  size_t t, offset;
   thrd_t threads[N_THREADS];
+  bool failed = false;
+#endif
   struct thread_args * args;
-  bool failed = false, batch_long;
+  bool batch_long;
   enum batch_size batch;
 
   for (idx = 0, shift = TOP_BIT; idx < CHAR_BIT; ++idx, --shift) {
@@ -260,6 +263,7 @@ int main(int argc, char *argv[]) {
     img_size % ULONG_BITS == 0;
   inv = 2. / img_size;
   row_size = img_size / CHAR_BIT;
+#ifndef NO_THREADS
   eq_parts = img_size / N_THREADS;
   remaining = img_size % N_THREADS;
   if (!eq_parts) {
@@ -270,7 +274,7 @@ int main(int argc, char *argv[]) {
     eq_parts = img_size / 2;
     remaining = img_size % 2;
   }
-  
+#endif
   if (img_size > MAX_IMG_SIZE) {
     PUT_ERR("Image size larger than compile-time limit.");
     return EXIT_FAILURE;
@@ -317,6 +321,26 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   }
+#ifdef NO_THREADS
+  if (!(args = malloc(sizeof * args))) {
+    free(imags);
+    free(reals);
+    batch_long ? free(bitmap.words) : free(bitmap.bytes);
+    return EXIT_FAILURE;
+  }
+  SET_THREAD_ARGS(
+      args,
+      0,
+      bitmap,
+      batch,
+      reals,
+      imags,
+      row_size,
+      img_size,
+      masks
+  );
+  compute(args);
+#else
   t = 0;
   offset = 0;
   if (remaining) {
@@ -367,11 +391,15 @@ int main(int argc, char *argv[]) {
       failed = true;
     }
   }
+#endif
   free(imags);
   free(reals);
+#ifndef NO_THREADS
   if (failed) {
     goto late_fail;
-  } else if (
+  }
+#endif
+  if (
      printf("P4\n%lu %lu\n", img_size, img_size) < 0 ||
      (
       batch_long ?
@@ -384,6 +412,7 @@ int main(int argc, char *argv[]) {
   }
   batch_long ? free(bitmap.words) : free(bitmap.bytes);
   return EXIT_SUCCESS;
+#ifndef NO_THREADS
  thread_fail:
   /* Uh oh, let previous threads finish and exit */
   PUT_ERR("Thread creation failed (out of memory?)");
@@ -396,6 +425,7 @@ int main(int argc, char *argv[]) {
   }
   free(imags);
   free(reals);
+#endif
  late_fail:
   batch_long ? free(bitmap.words) : free(bitmap.bytes);
   return EXIT_FAILURE;
