@@ -301,16 +301,16 @@ int main(int argc, char *argv[]) {
   }
   
   if (SIZE_MAX / row_size < img_size) {
-    PUT_ERR(
-	"Input dimensions would cause overflow, "
-	"try decreasing the size."
-    );
+    PUT_ERR("Input dimensions would cause overflow, try decreasing the size.");
     return EXIT_FAILURE;
   } else {
     bitmap_size = (size_t)img_size * row_size;
   }
 
-  if (!(reals = malloc(img_size * sizeof(double)))) {
+  if (SIZE_MAX / sizeof(double) < img_size) {
+    PUT_ERR("Allocation sizes would cause overflow, try decreasing the size.");
+    return EXIT_FAILURE;
+  } else if (!(reals = malloc(img_size * sizeof(double)))) {
     PUT_ERR("Cannot allocate real numbers (out of memory?)");
     return EXIT_FAILURE;
   } else if (!(imags = malloc(img_size * sizeof(double)))) {
@@ -318,10 +318,12 @@ int main(int argc, char *argv[]) {
     free(reals);
     return EXIT_FAILURE;
   }
+
   for (i = 0; i < img_size; ++i) {
     reals[i] = inv * i - 1.5;
     imags[i] = inv * i - 1.;
   }
+
   if (batch_long) {
     batch = WORD;
     row_size /= sizeof(unsigned long);
