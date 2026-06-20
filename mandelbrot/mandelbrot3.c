@@ -453,11 +453,14 @@ int main(int argc, char *argv[]) {
   return EXIT_FAILURE;
 }
 
+#undef PUT_ERRNO
 #undef PRINTF_ERR
 #undef PUT_WARN
 #undef PUT_ERR
 #undef SET_THREAD_ARGS
-#undef N_THREADS
 #undef MAX_IMG_SIZE
 #undef EXPAND
 #undef STRINGIFY
+#undef UNREACHABLE
+#undef NO_THREADS
+#undef N_THREADS
