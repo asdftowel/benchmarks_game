@@ -63,6 +63,11 @@ static inline bool all_gt(double const * restrict const vec) {
   return true;
 }
 
+enum bit_consts {
+  ULONG_BITS = CHAR_BIT * sizeof(unsigned long),
+  HIGH_SHIFT = ULONG_BITS - CHAR_BIT
+};
+
 static inline unsigned int mand_char(
     double const * restrict const init_r,
     double const init_i
@@ -82,7 +87,7 @@ static inline unsigned int mand_char(
     }
     if (all_gt(sums)) {
       result = 0;
-      goto quick_ret;
+      goto done;
     }
   }
   calc_sum(sums, reals, imags, init_r, init_i);
@@ -103,11 +108,9 @@ static inline unsigned int mand_char(
   result &= 0xfbu | (checks[5] << 2u);
   result &= 0xfdu | (checks[6] << 1u);
   result &= 0xfeu | checks[7];
- quick_ret:
+ done:
   return result;
 }
-
-#undef VEC_ALL_GT
 
 /*
  * Does this actually improve performance?
@@ -123,16 +126,13 @@ static inline unsigned long mand_long(
     double const init_i
 ) {
   unsigned long result = 0;
-  unsigned long const parts[4] = {
-    mand_char(init_r, init_i),
-    mand_char(init_r + 8, init_i),
-    mand_char(init_r + 16, init_i),
-    mand_char(init_r + 24, init_i)
-  };
-  result = (result >> 8u) | (parts[0] << 24u);
-  result = (result >> 8u) | (parts[1] << 24u);
-  result = (result >> 8u) | (parts[2] << 24u);
-  result = (result >> 8u) | (parts[3] << 24u);
+  int offset = 0;
+  size_t i;
+  for (i = 0; i < sizeof(unsigned long); ++i) {
+    result =
+      (result >> CHAR_BIT) | (mand_char(init_r + offset, init_i) << HIGH_SHIFT);
+    offset += CHAR_BIT;
+  }
   return result;
 }
 
@@ -161,7 +161,7 @@ static inline int compute(void *args) {
   switch (locals->batch) {
   case BYTE:
     for (row = 0; row < nrows; ++row) {
-      for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += 8) {
+      for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += CHAR_BIT) {
 	bitmap.bytes[row_offset + col] =
 	  (unsigned char)mand_char(init_r + ir_offset, init_i[row]);
       }
@@ -170,7 +170,7 @@ static inline int compute(void *args) {
     break;
   case WORD:
     for (row = 0; row < nrows; ++row) {
-      for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += 32) {
+      for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += ULONG_BITS) {
 	bitmap.words[row_offset + col] =
 	  mand_long(init_r + ir_offset, init_i[row]);
       }
@@ -218,14 +218,14 @@ static inline int compute(void *args) {
 #define PUT_ERRNO perror(__FILE__ ", line " EXPAND(__LINE__) ": Error")
 
 int main(int argc, char *argv[]) {
-  unsigned long img_size, row_size, i, remaining, eq_parts;
+  unsigned long img_size, img_rem, row_size, i, remaining, eq_parts;
   size_t bitmap_size, t, offset;
   union bitmap_t bitmap;
   char * end = NULL;
   double inv, * reals, * imags;
   thrd_t threads[N_THREADS];
   struct thread_args * args;
-  bool failed = false, batch_4;
+  bool failed = false, batch_long;
   enum batch_size batch;
 
 #ifdef _WIN32
@@ -247,16 +247,18 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if (ULONG_MAX - 7ul < img_size) {
-    PUT_WARN("Rounding up would cause overflow, rounding down.");
-  } else {
-    img_size += 7ul;
+  if ((img_rem = img_size % CHAR_BIT)) {
+    img_size -= img_rem;
+    if (ULONG_MAX - CHAR_BIT >= img_size) {
+      img_size += CHAR_BIT;
+    } else {
+      PUT_WARN("Rounding up would cause overflow, rounding down.");
+    }
   }
   
-  img_size &= ~7ul;
-  batch_4 = (img_size & 31) == 0;
+  batch_long = img_size % ULONG_BITS == 0;
   inv = 2. / img_size;
-  row_size = img_size / 8;
+  row_size = img_size / CHAR_BIT;
   eq_parts = img_size / N_THREADS;
   remaining = img_size % N_THREADS;
   if (!eq_parts) {
@@ -295,7 +297,7 @@ int main(int argc, char *argv[]) {
     reals[i] = inv * i - 1.5;
     imags[i] = inv * i - 1.;
   }
-  if (batch_4) {
+  if (batch_long) {
     batch = WORD;
     row_size /= sizeof(unsigned long);
     if (!(bitmap.words = malloc(bitmap_size))) {
@@ -369,7 +371,7 @@ int main(int argc, char *argv[]) {
   } else if (
      printf("P4\n%lu %lu\n", img_size, img_size) < 0 ||
      (
-      batch_4 ?
+      batch_long ?
       fwrite(bitmap.words, sizeof(unsigned long), bitmap_size, stdout) :
       fwrite(bitmap.bytes, sizeof(unsigned char), bitmap_size, stdout)
      ) != bitmap_size
@@ -377,7 +379,7 @@ int main(int argc, char *argv[]) {
     PUT_ERR("Data output failed, exiting.");
     goto late_fail;
   }
-  batch_4 ? free(bitmap.words) : free(bitmap.bytes);
+  batch_long ? free(bitmap.words) : free(bitmap.bytes);
   return EXIT_SUCCESS;
  thread_fail:
   /* Uh oh, let previous threads finish and exit */
@@ -392,7 +394,7 @@ int main(int argc, char *argv[]) {
   free(imags);
   free(reals);
  late_fail:
-  batch_4 ? free(bitmap.words) : free(bitmap.bytes);
+  batch_long ? free(bitmap.words) : free(bitmap.bytes);
   return EXIT_FAILURE;
 }
 
