@@ -256,7 +256,8 @@ int main(int argc, char *argv[]) {
     }
   }
   
-  batch_long = img_size % ULONG_BITS == 0;
+  batch_long = sizeof(unsigned char) != sizeof(unsigned long) &&
+    img_size % ULONG_BITS == 0;
   inv = 2. / img_size;
   row_size = img_size / CHAR_BIT;
   eq_parts = img_size / N_THREADS;
