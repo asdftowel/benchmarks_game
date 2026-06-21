@@ -101,7 +101,7 @@ static inline unsigned int mand_char(
     unsigned int const * restrict const masks
 ) {
   double reals[CHAR_BIT], imags[CHAR_BIT], sums[CHAR_BIT];
-  unsigned int result = 0xff;
+  unsigned int result = UCHAR_MAX;
   int i, j;
 
   for (i = 0; i < CHAR_BIT; ++i) {

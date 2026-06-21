@@ -102,7 +102,7 @@ static inline unsigned int mand_char(
     bool const prune
 ) {
   double reals[CHAR_BIT], imags[CHAR_BIT], sums[CHAR_BIT];
-  unsigned int result = 0xff;
+  unsigned int result = UCHAR_MAX;
   int i, j;
 
   for (i = 0; i < CHAR_BIT; ++i) {
