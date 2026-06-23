@@ -20,9 +20,14 @@
 
 #include <errno.h>
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+
+#if !defined(NAN) || !defined(INFINITY)
+#error "This program requires support for NaN and Infinity."
+#endif
 
 #define N_THREADS 4 /* Adjust to number of hardware threads */
 #if N_THREADS < 1
@@ -303,7 +308,10 @@ int main(int argc, char *argv[]) {
   
   batch_long = sizeof(unsigned char) != sizeof(unsigned long) &&
     img_size % ULONG_BITS == 0;
-  inv = 2. / (double)img_size;
+  if (!isnormal(inv = 2. / (double)img_size)) {
+    PUT_ERR("Cannot represent inv, result will be incorrect.");
+    return EXIT_FAILURE;
+  }
   row_size = img_size / CHAR_BIT;
 #ifndef NO_THREADS
   eq_parts = img_size / N_THREADS;
