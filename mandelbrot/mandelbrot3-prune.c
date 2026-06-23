@@ -22,6 +22,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #define N_THREADS 4 /* Adjust to number of hardware threads */
 #if N_THREADS < 1
@@ -42,6 +43,7 @@
 #endif
 
 #if __STDC_VERSION__ >= 202311L
+#include <stddef.h>
 #define UNREACHABLE unreachable()
 #elif defined(_MSC_VER)
 #define UNREACHABLE __assume(0)
@@ -120,13 +122,13 @@ static inline unsigned int mand_char(
 	goto done;
       }
     }
-    calc_sum(sums, reals, imags, init_r, init_i);
-    calc_sum(sums, reals, imags, init_r, init_i);
   } else {
-    for (i = 0; i < 50; ++i) {
+    for (i = 0; i < 48; ++i) {
       calc_sum(sums, reals, imags, init_r, init_i);
     }
   }
+  calc_sum(sums, reals, imags, init_r, init_i);
+  calc_sum(sums, reals, imags, init_r, init_i);
   for (i = 0, j = TOP_BIT; i < CHAR_BIT; ++i, --j) {
     result &= masks[i] | ((unsigned int)(sums[i] <= 4.) << j);
   }
@@ -146,7 +148,10 @@ static inline unsigned long mand_long(
   for (i = 0; i < sizeof(unsigned long); ++i) {
     result =
       (result >> CHAR_BIT) |
-      (mand_char(init_r + offset, init_i, masks, prune) << HIGH_SHIFT);
+      (
+       (unsigned long)mand_char(init_r + offset, init_i, masks, prune)
+       << HIGH_SHIFT
+      );
     offset += CHAR_BIT;
   }
   return result;
@@ -298,7 +303,7 @@ int main(int argc, char *argv[]) {
   
   batch_long = sizeof(unsigned char) != sizeof(unsigned long) &&
     img_size % ULONG_BITS == 0;
-  inv = 2. / img_size;
+  inv = 2. / (double)img_size;
   row_size = img_size / CHAR_BIT;
 #ifndef NO_THREADS
   eq_parts = img_size / N_THREADS;
@@ -337,8 +342,8 @@ int main(int argc, char *argv[]) {
   }
 
   for (i = 0; i < img_size; ++i) {
-    reals[i] = inv * i - 1.5;
-    imags[i] = inv * i - 1.;
+    reals[i] = inv * (double)i - 1.5;
+    imags[i] = inv * (double)i - 1.;
   }
 
   if (batch_long) {

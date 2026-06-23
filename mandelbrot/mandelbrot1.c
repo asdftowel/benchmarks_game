@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
   }
   
   img_size &= ~7ul;
-  inv = 2. / img_size;
+  inv = 2. / (double)img_size;
   row_size = img_size / 8;
   eq_parts = img_size / N_THREADS;
   remaining = img_size % N_THREADS;
@@ -241,8 +241,8 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   for (i = 0; i < img_size; ++i) {
-    reals[i] = inv * i - 1.5;
-    imags[i] = inv * i - 1.;
+    reals[i] = inv * (double)i - 1.5;
+    imags[i] = inv * (double)i - 1.;
   }
   t = 0;
   offset = 0;
