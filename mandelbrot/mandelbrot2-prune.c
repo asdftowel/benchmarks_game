@@ -221,8 +221,11 @@ static inline int compute(void *args) {
 }
 
 #ifndef MAX_IMG_SIZE
-#define MAX_IMG_SIZE 16000ul /* In pixels */
+#define MAX_IMG_SIZE 16000 /* In pixels */
 #endif
+
+#define PASTE(tok, suffix) tok ## suffix
+#define PASTE_EX(tok, suffix) PASTE(tok, suffix)
 
 #ifndef N_THREADS
 #define N_THREADS 4 /* Adjust to number of hardware threads */
@@ -309,7 +312,7 @@ int main(int argc, char *argv[]) {
     remaining = img_size % 2;
   }
   
-  if (img_size > MAX_IMG_SIZE) {
+  if (img_size > PASTE_EX(MAX_IMG_SIZE, ul)) {
     PUT_ERR("Image size larger than compile-time limit.");
     return EXIT_FAILURE;
   }
@@ -442,6 +445,8 @@ int main(int argc, char *argv[]) {
 #undef PUT_ERR
 #undef SET_THREAD_ARGS
 #undef N_THREADS
+#undef PASTE_EX
+#undef PASTE
 #undef MAX_IMG_SIZE
 #undef EXPAND
 #undef STRINGIFY
