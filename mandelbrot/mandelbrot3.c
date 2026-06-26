@@ -29,9 +29,10 @@
 #error "This program requires support for NaN and Infinity."
 #endif
 
+#ifndef N_THREADS
 #define N_THREADS 4 /* Adjust to number of hardware threads */
-#if N_THREADS < 1
-#error "N_THREADS must be at least 1"
+#elif N_THREADS < 1
+#error "N_THREADS must be at least 1."
 #endif
 
 #if !defined(__STDC_VERSION__) || \
@@ -204,7 +205,10 @@ static int compute(void *args) {
   return 0;
 }
 
+#ifndef MAX_IMG_SIZE
 #define MAX_IMG_SIZE 16000ul /* In pixels */
+#endif
+
 #define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows, m)	\
   switch (s) {							\
   case BYTE:							\

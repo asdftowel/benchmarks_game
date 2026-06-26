@@ -150,11 +150,16 @@ static inline int compute8(void *args) {
   return 0;
 }
 
+#ifndef MAX_IMG_SIZE
 #define MAX_IMG_SIZE 16000ul /* In pixels */
-#define N_THREADS 4 /* Adjust to number of hardware threads */
-#if N_THREADS < 1
-#error "N_THREADS must be at least 1"
 #endif
+
+#ifndef N_THREADS
+#define N_THREADS 4 /* Adjust to number of hardware threads */
+#elif N_THREADS < 1
+#error "N_THREADS must be at least 1."
+#endif
+
 #define SET_THREAD_ARGS(name, off, bm, r, i, w, rows)		\
   name->bitmap = bm + off * w;					\
   name->init_r = r;						\
