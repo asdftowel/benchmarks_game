@@ -32,7 +32,7 @@
 #ifndef N_THREADS
 #define N_THREADS 4 /* Adjust to number of hardware threads */
 #elif N_THREADS < 1
-#error "N_THREADS must be at least 1.
+#error "N_THREADS must be at least 1."
 #endif
 
 #if !defined(__STDC_VERSION__) || \
