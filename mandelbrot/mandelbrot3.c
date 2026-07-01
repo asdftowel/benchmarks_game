@@ -353,11 +353,6 @@ static inline bool mand_attempt_write(
   )
 #define PUT_ERRNO perror(__FILE__ ", line " EXPAND(__LINE__) ": Error")
 
-/*
- * In a real program the NO_THREADS ifdefs should instead be functions
- * in separate files that get conditionally included based on the macro.
- */
-
 int main(int argc, char *argv[]) {
   unsigned long img_size, img_rem, row_size, i;
   unsigned int masks[CHAR_BIT];
