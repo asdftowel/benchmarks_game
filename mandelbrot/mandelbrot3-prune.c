@@ -88,13 +88,15 @@ static inline void calc_sum(
 }
 
 static inline bool all_gt(double const * restrict const vec) {
+  bool result = true;
   int i;
   for (i = 0; i < CHAR_BIT; ++i) {
     if (vec[i] <= 4.) {
-      return false;
+      result = false;
+      break;
     }
   }
-  return true;
+  return result;
 }
 
 enum bit_consts {
@@ -103,7 +105,7 @@ enum bit_consts {
   TOP_BIT = CHAR_BIT - 1
 };
 
-static inline unsigned int mand_char(
+static unsigned int mand_char(
     double const * restrict const init_r,
     double const init_i,
     unsigned int const * restrict const masks,
