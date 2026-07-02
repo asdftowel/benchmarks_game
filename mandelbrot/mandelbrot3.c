@@ -130,8 +130,10 @@ static unsigned int mand_char(
   }
   calc_sum(sums, reals, imags, init_r, init_i);
   calc_sum(sums, reals, imags, init_r, init_i);
-  for (i = 0, j = TOP_BIT; i < CHAR_BIT; ++i, --j) {
+  j = TOP_BIT;
+  for (i = 0; i < CHAR_BIT; ++i) {
     result &= masks[i] | ((unsigned int)(sums[i] <= 4.) << j);
+    --j;
   }
  done:
   return result;
@@ -197,18 +199,22 @@ static int mand_compute(void *args) {
   switch (batch) {
   case BYTE:
     for (row = 0; row < nrows; ++row) {
-      for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += CHAR_BIT) {
+      ir_offset = 0;
+      for (col = 0; col < width; ++col) {
 	bitmap.bytes[row_offset + col] =
 	  (unsigned char)mand_char(init_r + ir_offset, init_i[row], masks);
+	ir_offset += CHAR_BIT;
       }
       row_offset += width;
     }
     break;
   case WORD:
     for (row = 0; row < nrows; ++row) {
-      for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += ULONG_BITS) {
+      ir_offset = 0;
+      for (col = 0; col < width; ++col) {
 	bitmap.words[row_offset + col] =
 	  mand_long(init_r + ir_offset, init_i[row], masks);
+	ir_offset += ULONG_BITS;
       }
       row_offset += width;
     }
@@ -364,8 +370,10 @@ int main(int argc, char *argv[]) {
   bool batch_long;
   enum batch_size batch;
 
-  for (idx = 0, shift = TOP_BIT; idx < CHAR_BIT; ++idx, --shift) {
+  shift = TOP_BIT;
+  for (idx = 0; idx < CHAR_BIT; ++idx) {
     masks[idx] = ~(1u << shift);
+    --shift;
   }
 
 #ifdef _WIN32
