@@ -36,7 +36,7 @@
 #endif
 
 #if !defined(__STDC_VERSION__) || \
-  __STDC_VERSION__ < 201112L || \
+  __STDC_VERSION__ < 201112L   || \
   defined(__STDC_NO_THREADS__) || \
   N_THREADS == 1
 #define NO_THREADS

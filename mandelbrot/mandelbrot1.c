@@ -25,7 +25,7 @@
 #include <stdio.h>
 
 #if !defined(__STDC_VERSION__) || \
-  __STDC_VERSION__ < 201112L || \
+  __STDC_VERSION__ < 201112L   || \
   defined(__STDC_NO_THREADS__)
 #error "This program requires support for C11 threads."
 #elif !defined(UINT8_MAX)
