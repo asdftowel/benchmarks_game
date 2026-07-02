@@ -60,13 +60,13 @@ static inline void calc_sum(
 }
 
 #define VEC_ALL_GT(vec, cmp) \
-  (vec[0] > cmp &&	     \
-   vec[1] > cmp &&	     \
-   vec[2] > cmp &&	     \
-   vec[3] > cmp &&	     \
-   vec[4] > cmp &&	     \
-   vec[5] > cmp &&	     \
-   vec[6] > cmp &&	     \
+  (vec[0] > cmp &&           \
+   vec[1] > cmp &&           \
+   vec[2] > cmp &&           \
+   vec[3] > cmp &&           \
+   vec[4] > cmp &&           \
+   vec[5] > cmp &&           \
+   vec[6] > cmp &&           \
    vec[7] > cmp)
 
 static inline unsigned int mand8(
@@ -163,11 +163,11 @@ static inline int compute8(void *args) {
 #error "N_THREADS must be at least 1."
 #endif
 
-#define SET_THREAD_ARGS(name, off, bm, r, i, w, rows)		\
-  name->bitmap = bm + off * w;					\
-  name->init_r = r;						\
-  name->init_i = i + off;					\
-  name->width = w;					       	\
+#define SET_THREAD_ARGS(name, off, bm, r, i, w, rows)           \
+  name->bitmap = bm + off * w;                                  \
+  name->init_r = r;                                             \
+  name->init_i = i + off;                                       \
+  name->width = w;                                              \
   name->nrows = rows
 
 int main(int argc, char *argv[]) {
@@ -226,9 +226,9 @@ int main(int argc, char *argv[]) {
   
   if (SIZE_MAX / row_size < img_size) {
     fputs(
-	"Error: Input dimensions would cause overflow, "
-	"try decreasing the size.\n",
-	stderr
+        "Error: Input dimensions would cause overflow, "
+        "try decreasing the size.\n",
+        stderr
     );
     return EXIT_FAILURE;
   } else {
@@ -257,20 +257,20 @@ int main(int argc, char *argv[]) {
   if (remaining) {
     for (; remaining > 0; ++t, --remaining) {
       if (!(args = malloc(sizeof * args))) {
-	goto thread_fail;
+        goto thread_fail;
       }
       SET_THREAD_ARGS(
-	  args,
-	  offset,
-	  bitmap,
-	  reals,
-	  imags,
-	  row_size,
-	  eq_parts + 1
+          args,
+          offset,
+          bitmap,
+          reals,
+          imags,
+          row_size,
+          eq_parts + 1
       );
       offset += eq_parts + 1;
       if (thrd_create(threads + t, compute8, args) != thrd_success) {
-	goto thread_fail;
+        goto thread_fail;
       }
     }
   }
@@ -279,13 +279,13 @@ int main(int argc, char *argv[]) {
       goto thread_fail;
     }
     SET_THREAD_ARGS(
-	args,
-	offset,
-	bitmap,
-	reals,
-	imags,
-	row_size,
-	eq_parts
+        args,
+        offset,
+        bitmap,
+        reals,
+        imags,
+        row_size,
+        eq_parts
     );
     offset += eq_parts;
     if (thrd_create(threads + t, compute8, args) != thrd_success) {

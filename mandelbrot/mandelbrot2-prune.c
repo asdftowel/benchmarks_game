@@ -78,13 +78,13 @@ static inline void calc_sum(
 }
 
 #define VEC_ALL_GT(vec, cmp) \
-  (vec[0] > cmp &&	     \
-   vec[1] > cmp &&	     \
-   vec[2] > cmp &&	     \
-   vec[3] > cmp &&	     \
-   vec[4] > cmp &&	     \
-   vec[5] > cmp &&	     \
-   vec[6] > cmp &&	     \
+  (vec[0] > cmp &&           \
+   vec[1] > cmp &&           \
+   vec[2] > cmp &&           \
+   vec[3] > cmp &&           \
+   vec[4] > cmp &&           \
+   vec[5] > cmp &&           \
+   vec[6] > cmp &&           \
    vec[7] > cmp)
 
 static inline unsigned int mand8(
@@ -112,11 +112,11 @@ static inline unsigned int mand8(
   if (prune) {
     for (i = 0; i < 6; ++i) {
       for (j = 0; j < 8; ++j) {
-	calc_sum(sums, reals, imags, init_r, init_i);
+        calc_sum(sums, reals, imags, init_r, init_i);
       }
       if (VEC_ALL_GT(sums, 4.)) {
-	result = 0;
-	goto quick_ret;
+        result = 0;
+        goto quick_ret;
       }
     }
   } else {
@@ -194,9 +194,9 @@ static inline int compute(void *args) {
   case BYTE:
     for (row = 0; row < nrows; ++row) {
       for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += 8) {
-	prune = (
-	    bitmap.bytes[row_offset + col] =
-	    (uint8_t)mand8(init_r + ir_offset, init_i[row], prune)
+        prune = (
+            bitmap.bytes[row_offset + col] =
+            (uint8_t)mand8(init_r + ir_offset, init_i[row], prune)
         ) == 0;
       }
       row_offset += width;
@@ -205,10 +205,10 @@ static inline int compute(void *args) {
   case WORD:
     for (row = 0; row < nrows; ++row) {
       for (col = 0, ir_offset = 0; col < width; ++col, ir_offset += 32) {
-	prune = ((
-	    bitmap.words[row_offset + col] =
-	    (uint32_t)mand32(init_r + ir_offset, init_i[row], prune)
-	) & 0xff000000u) == 0;
+        prune = ((
+            bitmap.words[row_offset + col] =
+            (uint32_t)mand32(init_r + ir_offset, init_i[row], prune)
+        ) & 0xff000000u) == 0;
       }
       row_offset += width;
     }
@@ -233,31 +233,31 @@ static inline int compute(void *args) {
 #error "N_THREADS must be at least 1."
 #endif
 
-#define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows)	\
-  switch (s) {							\
-  case BYTE:							\
-    name->bitmap.bytes = bm.bytes + off * w;			\
-    break;							\
-  case WORD:							\
-    name->bitmap.words = bm.words + off * w;			\
-    break;							\
-  default:							\
-    UNREACHABLE;						\
-  }								\
-  name->batch = s;						\
-  name->init_r = r;						\
-  name->init_i = i + off;					\
-  name->width = w;					       	\
+#define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows)        \
+  switch (s) {                                                  \
+  case BYTE:                                                    \
+    name->bitmap.bytes = bm.bytes + off * w;                    \
+    break;                                                      \
+  case WORD:                                                    \
+    name->bitmap.words = bm.words + off * w;                    \
+    break;                                                      \
+  default:                                                      \
+    UNREACHABLE;                                                \
+  }                                                             \
+  name->batch = s;                                              \
+  name->init_r = r;                                             \
+  name->init_i = i + off;                                       \
+  name->width = w;                                              \
   name->nrows = rows
-#define PUT_ERR(msg)						\
+#define PUT_ERR(msg)                                            \
   fputs(__FILE__ ", line " EXPAND(__LINE__) ": Error: " msg "\n", stderr)
-#define PUT_WARN(msg)						\
+#define PUT_WARN(msg)                                           \
   fputs(__FILE__ ", line " EXPAND(__LINE__) ": Warning: " msg "\n", stderr)
-#define PRINTF_ERR(fmt, ...)						\
-  fprintf(								\
-      stderr, 								\
-      __FILE__ ", line " EXPAND(__LINE__) ": Error: " fmt "\n",		\
-      __VA_ARGS__							\
+#define PRINTF_ERR(fmt, ...)                                            \
+  fprintf(                                                              \
+      stderr,                                                           \
+      __FILE__ ", line " EXPAND(__LINE__) ": Error: " fmt "\n",         \
+      __VA_ARGS__                                                       \
   )
 #define PUT_ERRNO perror(__FILE__ ", line " EXPAND(__LINE__) ": Error")
 
@@ -319,8 +319,8 @@ int main(int argc, char *argv[]) {
   
   if (SIZE_MAX / row_size < img_size) {
     PUT_ERR(
-	"Input dimensions would cause overflow, "
-	"try decreasing the size."
+        "Input dimensions would cause overflow, "
+        "try decreasing the size."
     );
     return EXIT_FAILURE;
   } else {
@@ -363,21 +363,21 @@ int main(int argc, char *argv[]) {
   if (remaining) {
     for (; remaining > 0; ++t, --remaining) {
       if (!(args = malloc(sizeof * args))) {
-	goto thread_fail;
+        goto thread_fail;
       }
       SET_THREAD_ARGS(
-	  args,
-	  offset,
-	  bitmap,
-	  batch,
-	  reals,
-	  imags,
-	  row_size,
-	  eq_parts + 1
+          args,
+          offset,
+          bitmap,
+          batch,
+          reals,
+          imags,
+          row_size,
+          eq_parts + 1
       );
       offset += eq_parts + 1;
       if (thrd_create(threads + t, compute, args) != thrd_success) {
-	goto thread_fail;
+        goto thread_fail;
       }
     }
   }
@@ -386,14 +386,14 @@ int main(int argc, char *argv[]) {
       goto thread_fail;
     }
     SET_THREAD_ARGS(
-	args,
-	offset,
-	bitmap,
-	batch,
-	reals,
-	imags,
-	row_size,
-	eq_parts
+        args,
+        offset,
+        bitmap,
+        batch,
+        reals,
+        imags,
+        row_size,
+        eq_parts
     );
     offset += eq_parts;
     if (thrd_create(threads + t, compute, args) != thrd_success) {

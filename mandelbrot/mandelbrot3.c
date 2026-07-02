@@ -201,9 +201,9 @@ static int mand_compute(void *args) {
     for (row = 0; row < nrows; ++row) {
       ir_offset = 0;
       for (col = 0; col < width; ++col) {
-	bitmap.bytes[row_offset + col] =
-	  (unsigned char)mand_char(init_r + ir_offset, init_i[row], masks);
-	ir_offset += CHAR_BIT;
+        bitmap.bytes[row_offset + col] =
+          (unsigned char)mand_char(init_r + ir_offset, init_i[row], masks);
+        ir_offset += CHAR_BIT;
       }
       row_offset += width;
     }
@@ -212,9 +212,9 @@ static int mand_compute(void *args) {
     for (row = 0; row < nrows; ++row) {
       ir_offset = 0;
       for (col = 0; col < width; ++col) {
-	bitmap.words[row_offset + col] =
-	  mand_long(init_r + ir_offset, init_i[row], masks);
-	ir_offset += ULONG_BITS;
+        bitmap.words[row_offset + col] =
+          mand_long(init_r + ir_offset, init_i[row], masks);
+        ir_offset += ULONG_BITS;
       }
       row_offset += width;
     }
@@ -228,22 +228,22 @@ static int mand_compute(void *args) {
   return 0;
 }
 
-#define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows, m)	\
-  switch (s) {							\
-  case BYTE:							\
-    name->bitmap.bytes = bm.bytes + off * w;			\
-    break;							\
-  case WORD:							\
-    name->bitmap.words = bm.words + off * w;			\
-    break;							\
-  default:							\
-    UNREACHABLE;						\
-  }								\
-  name->batch = s;						\
-  name->init_r = r;						\
-  name->init_i = i + off;					\
-  name->width = w;					       	\
-  name->nrows = rows;						\
+#define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows, m)     \
+  switch (s) {                                                  \
+  case BYTE:                                                    \
+    name->bitmap.bytes = bm.bytes + off * w;                    \
+    break;                                                      \
+  case WORD:                                                    \
+    name->bitmap.words = bm.words + off * w;                    \
+    break;                                                      \
+  default:                                                      \
+    UNREACHABLE;                                                \
+  }                                                             \
+  name->batch = s;                                              \
+  name->init_r = r;                                             \
+  name->init_i = i + off;                                       \
+  name->width = w;                                              \
+  name->nrows = rows;                                           \
   name->masks = m
 
 static inline bool mand_manage(
@@ -279,15 +279,15 @@ static inline bool mand_manage(
       goto alloc_fail;
     }
     SET_THREAD_ARGS(
-	args,
-	img_offset,
-	bitmap,
-	batch,
-	reals,
-	imags,
-	row_size,
-	remaining ? eql_parts + 1 : eql_parts,
-	masks
+        args,
+        img_offset,
+        bitmap,
+        batch,
+        reals,
+        imags,
+        row_size,
+        remaining ? eql_parts + 1 : eql_parts,
+        masks
     );
     img_offset += remaining ? eql_parts + 1 : eql_parts;
     if (thrd_create(threads + t, mand_compute, args) != thrd_success) {
@@ -347,15 +347,15 @@ static inline bool mand_attempt_write(
 
 #define PASTE(tok, suffix) tok ## suffix
 #define PASTE_EX(tok, suffix) PASTE(tok, suffix)
-#define PUT_ERR(msg)						\
+#define PUT_ERR(msg)                                            \
   fputs(__FILE__ ", line " EXPAND(__LINE__) ": Error: " msg "\n", stderr)
-#define PUT_WARN(msg)						\
+#define PUT_WARN(msg)                                           \
   fputs(__FILE__ ", line " EXPAND(__LINE__) ": Warning: " msg "\n", stderr)
-#define PRINTF_ERR(fmt, ...)						\
-  fprintf(								\
-      stderr, 								\
-      __FILE__ ", line " EXPAND(__LINE__) ": Error: " fmt "\n",		\
-      __VA_ARGS__							\
+#define PRINTF_ERR(fmt, ...)                                            \
+  fprintf(                                                              \
+      stderr,                                                           \
+      __FILE__ ", line " EXPAND(__LINE__) ": Error: " fmt "\n",         \
+      __VA_ARGS__                                                       \
   )
 #define PUT_ERRNO perror(__FILE__ ", line " EXPAND(__LINE__) ": Error")
 
