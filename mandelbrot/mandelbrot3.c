@@ -228,6 +228,7 @@ static int mand_compute(void *args) {
   return 0;
 }
 
+#ifndef NO_THREADS
 #define SET_THREAD_ARGS(name, off, bm, s, r, i, w, rows, m)     \
   switch (s) {                                                  \
   case BYTE:                                                    \
@@ -255,10 +256,6 @@ static inline bool mand_manage(
     double const * restrict const reals,
     double const * restrict const imags
 ) {
-#ifdef NO_THREADS
-  mand_compute(bitmap, batch, img_size, row_size, masks, reals, imags);
-  return true;
-#else
   unsigned long eql_parts, remaining;
   size_t img_offset = 0, t;
   thrd_t threads[N_THREADS];
@@ -308,10 +305,10 @@ static inline bool mand_manage(
     thrd_join(threads[t], NULL);
   }
   return succeeded;
-#endif
 }
 
 #undef SET_THREAD_ARGS
+#endif
 
 static inline bool mand_attempt_write(
     union bitmap_type const bitmap,
@@ -419,9 +416,8 @@ int main(int argc, char *argv[]) {
   if (SIZE_MAX / row_size < img_size) {
     PUT_ERR("Input dimensions would cause overflow, try decreasing the size.");
     goto fail_0;
-  } else {
-    bitmap_size = (size_t)img_size * row_size;
   }
+  bitmap_size = (size_t)img_size * row_size;
 
   if (SIZE_MAX / sizeof(double) < img_size) {
     PUT_ERR("Allocation sizes would cause overflow, try decreasing the size.");
@@ -455,14 +451,18 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (mand_manage(bitmap, batch, img_size, row_size, masks, reals, imags)) {
-    if (!mand_attempt_write(bitmap, batch, img_size, bitmap_size)) {
-      PUT_ERR("Data output failed, exiting.");
-    } else {
-      exit_code = EXIT_SUCCESS;
-    }
-  } else {
+  if (
+#ifdef NO_THREADS
+      mand_compute(bitmap, batch, img_size, row_size, masks, reals, imags)
+#else
+      !mand_manage(bitmap, batch, img_size, row_size, masks, reals, imags)
+#endif
+  ) {
     PUT_ERR("Thread allocation failed (out of memory?)");
+  } else if (!mand_attempt_write(bitmap, batch, img_size, bitmap_size)) {
+    PUT_ERR("Data output failed, exiting.");
+  } else {
+    exit_code = EXIT_SUCCESS;
   }
 
   batch_long ? free(bitmap.words) : free(bitmap.bytes);

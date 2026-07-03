@@ -475,14 +475,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (mand_manage(bitmap, batch, img_size, row_size, masks, reals, imags)) {
-    if (!mand_attempt_write(bitmap, batch, img_size, bitmap_size)) {
-      PUT_ERR("Data output failed, exiting.");
-    } else {
-      exit_code = EXIT_SUCCESS;
-    }
-  } else {
+  if (!mand_manage(bitmap, batch, img_size, row_size, masks, reals, imags)) {
     PUT_ERR("Thread allocation failed (out of memory?)");
+  } else if (!mand_attempt_write(bitmap, batch, img_size, bitmap_size)) {
+    PUT_ERR("Data output failed, exiting.");
+  } else {
+    exit_code = EXIT_SUCCESS;
   }
 
   batch_long ? free(bitmap.words) : free(bitmap.bytes);
