@@ -382,7 +382,7 @@ int main(int argc, char *argv[]) {
 #endif
   
   if (argc != 2) {
-    fputs("Usage: ./mandelbrot <image size>\n", stderr);
+    PUT_ERR("Usage: ./mandelbrot <image size>\n");
     goto fail_0;
   } else if (!(img_size = strtoul(argv[1], &end, 10))) {
     PRINTF_ERR("Zero pixels. Is \"%s\" a number?", argv[1]);
