@@ -173,6 +173,12 @@ struct thread_args {
   unsigned int const * masks;
 };
 
+enum mand_state {
+  SUCCEEDED = 0,
+  ALLOC_FAILED,
+  JOIN_FAILED
+};
+
 #ifdef NO_THREADS
 static inline int mand_compute(
     union bitmap_type const bitmap,
@@ -247,7 +253,7 @@ static int mand_compute(void *args) {
   name->nrows = rows;                                           \
   name->masks = m
 
-static inline bool mand_manage(
+static inline enum mand_state mand_manage(
     union bitmap_type const bitmap,
     enum batch_size const batch,
     unsigned long const img_size,
@@ -260,7 +266,7 @@ static inline bool mand_manage(
   size_t img_offset = 0, t;
   thrd_t threads[N_THREADS];
   struct thread_args * args;
-  bool succeeded = true;
+  bool status = SUCCEEDED;
   eql_parts = img_size / N_THREADS;
   remaining = img_size % N_THREADS;
   if (!eql_parts) {
@@ -294,17 +300,17 @@ static inline bool mand_manage(
   }
   for (t = 0; t < N_THREADS; ++t) {
     if (thrd_join(threads[t], NULL) != thrd_success) {
-      succeeded = false;
+      status = JOIN_FAILED;
     }
   }
-  return succeeded;
+  return status;
  alloc_fail:
-  succeeded = false;
+  status = ALLOC_FAILED;
   while (t) {
     --t;
     thrd_join(threads[t], NULL);
   }
-  return succeeded;
+  return status;
 }
 
 #undef SET_THREAD_ARGS
@@ -451,18 +457,28 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (
+  switch (
 #ifdef NO_THREADS
       mand_compute(bitmap, batch, img_size, row_size, masks, reals, imags)
 #else
-      !mand_manage(bitmap, batch, img_size, row_size, masks, reals, imags)
+      mand_manage(bitmap, batch, img_size, row_size, masks, reals, imags)
 #endif
   ) {
-    PUT_ERR("Thread allocation failed (out of memory?)");
-  } else if (!mand_attempt_write(bitmap, batch, img_size, bitmap_size)) {
-    PUT_ERR("Data output failed, exiting.");
-  } else {
-    exit_code = EXIT_SUCCESS;
+  case SUCCEEDED:
+    if (mand_attempt_write(bitmap, batch, img_size, bitmap_size)) {
+      exit_code = EXIT_SUCCESS;
+    } else {
+      PUT_ERR("Data output failed, exiting.");
+    }
+    break;
+  case ALLOC_FAILED:
+    PUT_ERR("Cannot allocate thread (out of memory?)");
+    break;
+  case JOIN_FAILED:
+    PUT_ERR("At least one thread terminated incorrectly.");
+    break;
+  default:
+    UNREACHABLE;
   }
 
   batch_long ? free(bitmap.words) : free(bitmap.bytes);
